@@ -96,10 +96,10 @@ def train_batch_generator(batch_size=128):
             sel_cam_view = np.random.choice(['center', 'left', 'right'])
             if sel_cam_view == 'left':
                 image_file = train_dir + row['left']
-                camera_offset = 0.30
+                camera_offset = 0.20
             elif sel_cam_view == 'right':
                 image_file = train_dir + row['right']
-                camera_offset = -0.20
+                camera_offset = -0.30
             else:
                 image_file = train_dir + row['center']
 
@@ -237,14 +237,14 @@ def comma_ai_model():
 
 
 # create the model
-# model_file = "comma_ai_model"
+# model_file= "comma_ai_model"
 # model = comma_ai_model()
 
-model_file = "nvidia_model_v1"
-model = nvidia_model_v1()
+# model_file = "nvidia_model_v1"
+# model = nvidia_model_v1()
 
-# model_file = "nvidia_model_v2"
-# model = nvidia_model_v2()
+model_file = "nvidia_model_v2"
+model = nvidia_model_v2()
 
 # callbacks
 from keras.callbacks import ModelCheckpoint, EarlyStopping
