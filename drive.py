@@ -68,6 +68,7 @@ def telemetry(sid, data):
         rows, cols, channels = image_array.shape
         image_array = image_array[60:-20, : ]
         image_array = cv2.resize(image_array, (200, 66))
+        # image_array = cv2.resize(image_array, (64, 64))
 
         steering_angle = float(model.predict(image_array[None, :, :, :], batch_size=1))
 

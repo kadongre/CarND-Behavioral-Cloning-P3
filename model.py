@@ -16,8 +16,8 @@ from sklearn.utils import shuffle
 from keras.models import Sequential
 from keras.layers import BatchNormalization
 from keras.regularizers import l2, activity_l2
-from keras.layers.convolutional import Convolution2D
 from keras.layers import ELU, Lambda, Dense, Dropout, Flatten
+from keras.layers.convolutional import Convolution2D, MaxPooling2D
 
 train_dir = "./train/"
 train_csv_file = train_dir + "driving_log.csv"
@@ -36,6 +36,7 @@ def translate_image(image, steering_angle):
     
     # no shifts in vertical directions
     tr_y = 0
+    # tr_y = 10 * np.random.uniform() - 10/2
 
     translationM = np.float32([[1,0,tr_x],[0,1,tr_y]])
     new_image = cv2.warpAffine(image,translationM,(cols,rows))
@@ -70,7 +71,8 @@ def crop_resize_image(image):
     rows, cols, channels = image.shape
 
     new_image = image[60:-20, : ]
-    new_image = cv2.resize(image,(200, 66))    
+    new_image = cv2.resize(image,(200, 66))
+    # new_image = cv2.resize(image,(64, 64))
 
     return new_image
 
@@ -96,16 +98,19 @@ def train_batch_generator(batch_size=128):
             sel_cam_view = np.random.choice(['center', 'left', 'right'])
             if sel_cam_view == 'left':
                 image_file = train_dir + row['left']
-                camera_offset = 0.20
+                camera_offset = 0.25
             elif sel_cam_view == 'right':
                 image_file = train_dir + row['right']
-                camera_offset = -0.30
+                camera_offset = -0.25
             else:
                 image_file = train_dir + row['center']
+            # image_file = train_dir + row['center']
 
             processed_image, processed_steering_angle = process_image(image_file, steering_angle+camera_offset)
             batch_train_X.append(np.reshape(processed_image, (1, 66, 200, 3)))
             batch_train_y.append(np.array([[processed_steering_angle]]))
+            # batch_train_X.append(np.reshape(processed_image, (1, 64, 64, 3)))
+            # batch_train_y.append(np.array([[processed_steering_angle]]))
 
             if len(batch_train_X) == batch_size:
                 # shuffle batch
@@ -128,6 +133,9 @@ def test_batch_generator(batch_size=128):
 
             batch_test_X.append(np.reshape(image, (1, 66, 200, 3)))
             batch_test_y.append(np.array([[steering_angle]]))
+
+            # batch_test_X.append(np.reshape(image, (1, 64, 64, 3)))
+            # batch_test_y.append(np.array([[steering_angle]]))
 
             if len(batch_test_X) == batch_size:
                 yield (np.vstack(batch_test_X), np.vstack(batch_test_y))
@@ -209,7 +217,6 @@ def nvidia_model_v2():
 
     return  model
 
-
 def comma_ai_model():
     channels, rows, cols = 3, 66, 200
 
@@ -234,17 +241,59 @@ def comma_ai_model():
 
     return model
 
+def vivek_yadav_model():
+    model = Sequential()
+    model.add(Lambda(lambda x: x / 127.5 - 1., input_shape=(64, 64, 3)))
 
+    model.add(Convolution2D(3, 1, 1, border_mode='valid', name='conv0', init='he_normal'))
+    model.add(Convolution2D(32, 3, 3, border_mode='valid', name='conv1', init='he_normal'))
+    model.add(ELU())
+    model.add(Convolution2D(32, 3, 3, border_mode='valid', name='conv2', init='he_normal'))
+    model.add(ELU())
+    model.add(MaxPooling2D(pool_size=(2, 2)))
+    model.add(Dropout(0.5))
+
+    model.add(Convolution2D(64, 3, 3, border_mode='valid', name='conv3', init='he_normal'))
+    model.add(ELU())
+    model.add(Convolution2D(64, 3, 3, border_mode='valid', name='conv4', init='he_normal'))
+    model.add(ELU())
+    model.add(MaxPooling2D(pool_size=(2, 2)))
+    model.add(Dropout(0.5))
+
+    model.add(Convolution2D(128, 3, 3, border_mode='valid', name='conv5', init='he_normal'))
+    model.add(ELU())
+    model.add(Convolution2D(128, 3, 3, border_mode='valid', name='conv6', init='he_normal'))
+    model.add(ELU())
+    model.add(MaxPooling2D(pool_size=(2, 2)))
+    model.add(Dropout(0.5))
+
+    model.add(Flatten())
+    model.add(Dense(512, name='hidden1', init='he_normal'))
+    model.add(ELU())
+    model.add(Dropout(0.5))
+    model.add(Dense(64, name='hidden2', init='he_normal'))
+    model.add(ELU())
+    model.add(Dropout(0.5))
+    model.add(Dense(16, name='hidden3', init='he_normal'))
+    model.add(ELU())
+    model.add(Dropout(0.5))
+    model.add(Dense(1, name='output', init='he_normal'))
+
+    model.compile(optimizer="adam", loss="mse")
+    return model
 
 # create the model
+model_file = "nvidia_model_v1"
+model = nvidia_model_v1()
+
 # model_file= "comma_ai_model"
 # model = comma_ai_model()
 
-# model_file = "nvidia_model_v1"
-# model = nvidia_model_v1()
+# model_file = "nvidia_model_v2"
+# model = nvidia_model_v2()
 
-model_file = "nvidia_model_v2"
-model = nvidia_model_v2()
+# model_file = "vivek_yadav_model"
+# model = vivek_yadav_model()
 
 # callbacks
 from keras.callbacks import ModelCheckpoint, EarlyStopping
